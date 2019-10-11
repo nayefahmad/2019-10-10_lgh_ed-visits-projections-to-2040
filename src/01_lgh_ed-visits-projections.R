@@ -169,7 +169,7 @@ df1.ed_visits_annual %>%
 df2.bc_population <- 
   people_2018 %>% 
   filter(Year >= "2010", 
-         Year <= "2036") %>% 
+         Year <= "2040") %>% 
   select(Year, 
          AgeGroup, 
          Population) %>% 
@@ -222,7 +222,7 @@ df3.pop_nested$age_group_growth[[sample(1:20, 1)]]
 # save output: 
 # pdf(here::here("results",
 #                "dst",
-#                "2019-09-24_bc_pop-growth-by-age-group.pdf"))
+#                "2019-10-10_bc_pop-growth-by-age-group.pdf"))
 # df3.pop_nested$age_group_growth
 # dev.off()
 
@@ -380,7 +380,7 @@ df5.nested <-
   mutate(ed_vs_pop = pmap(list(df = data, 
                                subset1 = age_group_pop, 
                                subset2 = ctas, 
-                               site = "RHS"), 
+                               site = site), 
                           plot_trend2))
 # df5.nested
 # df5.nested$ed_vs_pop[64]
@@ -397,7 +397,7 @@ df5.nested$ed_vs_pop[[sample(1:100, 1)]]
 # save output: 
 # pdf(here::here("results",
 #                "dst",
-#                "2019-09-24_rhs_ed-visits-vs-pop-segmented-by-age-and-ctas.pdf"))
+#                "2019-10-10_rhs_ed-visits-vs-pop-segmented-by-age-and-ctas.pdf"))
 # df5.nested$ed_vs_pop
 # dev.off()
 
