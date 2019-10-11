@@ -1,8 +1,8 @@
 
 #'--- 
-#' title: "RHS ED projections"
+#' title: "LGH ED projections"
 #' author: "Nayef Ahmad"
-#' date: "2019-07-18"
+#' date: "2019-10-10"
 #' output: 
 #'   html_document: 
 #'     keep_md: yes
@@ -19,12 +19,13 @@
 library(tidyverse)
 library(denodoExtractor)
 library(DT)
+library(lubridate)
 
-# setup_denodo()
+setup_denodo()  # LGH data doesn't exist in SQL after CST 
 cnx <- DBI::dbConnect(odbc::odbc(), dsn = "cnx_SPDBSCSTA001")
 
-ed_mart <- dplyr::tbl(cnx, dbplyr::in_schema("EDMart.dbo", 
-                                             "[vwEDVisitIdentifiedRegional]"))
+# ed_mart <- dplyr::tbl(cnx, dbplyr::in_schema("EDMart.dbo", 
+#                                              "[vwEDVisitIdentifiedRegional]"))
 
 people_2018 <- dplyr::tbl(cnx, dbplyr::in_schema("DSSI.dbo", 
                                                  "[PEOPLE2018Complete]"))
@@ -52,34 +53,35 @@ knitr::opts_chunk$set(warning=FALSE, message=FALSE)
 #' # ED visits data 
 #+ data 
 # 1) ED visits data : ----------------
-site <- "RHS"
+site <- "LGH"
 
 df1.ed_visits_annual <- 
-  ed_mart %>% 
-  filter(FacilityShortName == site) %>% 
-  select(StartDate, 
-         TriageAcuityDescription, 
-         Age, 
-         PatientID) %>% 
+  vw_eddata %>% 
+  filter(facility_short_name == site) %>% 
+  select(start_date_id, 
+         last_triage_acuity_desc, 
+         age_at_start_date, 
+         patient_id) %>% 
   collect() %>% 
   
-  mutate(year = lubridate::year(StartDate), 
-         age_group = cut(Age, c(-1, 0, seq(4, 89, 5), 200)),  # 5-yr age buckets
-         TriageAcuityDescription = as.factor(TriageAcuityDescription)) %>%
+  mutate(start_date = ymd(start_date_id), 
+         year = lubridate::year(start_date), 
+         age_group = cut(age_at_start_date, c(-1, 0, seq(4, 89, 5), 200)),  # 5-yr age buckets
+         last_triage_acuity_desc = as.factor(last_triage_acuity_desc)) %>%
   
   # remove NA and "Invalid":  
-  filter(!is.na(Age),
-         !TriageAcuityDescription %in% c("Invalid", "8 - Disaster Acuity Only" )) %>% 
-  mutate(TriageAcuityDescription = fct_drop(TriageAcuityDescription)) %>% 
+  filter(!is.na(age_at_start_date)) %>% 
+         # !TriageAcuityDescription %in% c("Invalid", "8 - Disaster Acuity Only" )) %>% 
+  mutate(last_triage_acuity_desc = fct_drop(last_triage_acuity_desc)) %>% 
   
 
   # group to year-ctas-age_group level: 
   count(year,
-        TriageAcuityDescription, 
-        Age, 
+        last_triage_acuity_desc, 
+        age_at_start_date, 
         age_group) %>%
   
-  rename(ctas = TriageAcuityDescription,
+  rename(ctas = last_triage_acuity_desc,
          ed_visits = n)
   
 
@@ -87,24 +89,25 @@ df1.ed_visits_annual <-
 # str(df1.ed_visits_annual)
 # summary(df1.ed_visits_annual)
 
-#' Note that we remove cases where `Age` = NA (25 rows), and where `age_group` =
-#' "Invalid" (255 rows)
-#' 
-#' We also remove `ctas` levels other than 1 to 5.
-#' 
-#'  Here's a random sample of 100 rows from the result:  
+#' Note that we remove cases where `Age` = NA (80 rows), and where `age_group` =
+#' "Invalid" (80 rows)
+#'
+#' For LGH (unlike RHS, for example), `ctas` levels other than 1 to 5 are a significant portion of the
+#' total, so we won't exclude them.
+#'
+#' Here's a random sample of 100 rows from the result:
 
 df1.ed_visits_annual %>% 
   sample_n(100) %>% 
-  arrange(year, ctas, Age) %>% 
+  arrange(year, ctas, age_at_start_date) %>% 
   datatable(extensions = 'Buttons',
             options = list(dom = 'Bfrtip', 
                            buttons = c('excel', "csv")))
 
 
 #' 
-#' ## Exploratory plots - RHS ED visits 
-# > Exploratory plots - RHS ED visits : -------------
+#' ## Exploratory plots - LGH ED visits 
+# > Exploratory plots - LGH ED visits : -------------
 
 # Annual ED Visits by Calendar Year, broken out by CTAS 
 df1.ed_visits_annual %>% 
