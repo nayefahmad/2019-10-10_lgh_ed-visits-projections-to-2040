@@ -232,6 +232,20 @@ df3.pop_nested$age_group_growth[[sample(1:20, 1)]]
 # df3.pop_nested$age_group_growth
 # dev.off()
 
+#******************************************************
+# > Observations abt pop growth ----------
+
+#' ### Observations about pop growth 
+#' 
+#' * Sharp decrease in 20-24 age group over next few years. 
+#' 
+#' * 25-29 group continues growing up to 2023, then sharp decrease.
+#' 
+#' * 30-34 group continues growing up to 2028, then sharp decrease. 
+#' 
+#' * 70-74 group continues growing up to 2034, then slight decrease. 
+#' 
+#' 
 
 # for use in predictions with regressions, pull out the future populations only:
 df3.pop_nested <- 
@@ -749,22 +763,30 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 #' # Adjustments to the projections
 # 9) Adjustments to the projections: -----------
 
-#' All estimates are based on trends in the historical data. There are 4 
-#' population segments for which there is almost no relevant 	
-#' historical data, because of a major shift in behaviour since 2016. These 
-#' segments are: 	
-#'  
-#' * Age 40-44, CTAS 2 and CTAS 3	
-#' * Age 45-49, CTAS 2 and CTAS 3	
-#' 
-
-#' These segments had decreasing population and increasing ED visits from 2010 
-#' to 2015. 	
-#' 
-#' Then, from 2016, there is slight evidence that both population and ED visits 
-#' are increasing, but the trend is not clear yet.
-#' 
-#' We will refit models for these segments with data only from 2016. 
+#' Forecasts can be very weird if there has been a sudden shift in the
+#' reletionship between population size and ED visits recently. In all of the
+#' following segments, population was falling while ED visits rose; but recently
+#' there's been a shift that shows that both population and ED visits are
+#' rising.
+#'
+#' In this case, we'll refit the model using more recent data, after the shift
+#' occurred. This has the benefit that we are capturing the new dynamics, but
+#' the cost is that with less data, the uncertainty is much higher. This
+#' uncertainty will show up in the difference between the fitted value and the
+#' upper prediction interval.
+#'
+#' Segments to review:
+#'
+#' * age 10-14, CTAS 2 and 3. Re-fit model from 2014 onwards?
+#'
+#' * age 40-44, CTAS 1, 2, 3, 4, 5. Re-fit from 2016 onwards?
+#'
+#' * age 45-49, CTAS 2, 3, 4. Re-fit from 2014 onwards.
+#'
+#' * age 50-54, CTAS 2, 3, 4, 5. Re-fit from 2016 onwards.
+#'
+#' * age 80-84, CTAS 4. Re-fit from 2014 onwards. 
+#'
 #' 
 
 
@@ -1025,7 +1047,9 @@ df13.3_summary_historical_by_year %>%
 #' CTAS other than 1-5.
 #' 
 
-site <- "RHS"
+# > Checks -----
+
+site <- "LGH"
 
 df14.1.actuals <- 
   ed_mart %>% 
@@ -1062,4 +1086,7 @@ df14.2.processed <-
 #' CTAS \* years. Years are from 2010 to 2036.
 #' 
 #' Ans: `r 20*5*(2036-2010+1) == nrow(expand(df10.historical_and_projection, age_group_pop, ctas, year) %>% left_join(df10.historical_and_projection))`
+#' 
+#' 
+#' 4. Are there any negative values in the forecasts? todo: 
  
