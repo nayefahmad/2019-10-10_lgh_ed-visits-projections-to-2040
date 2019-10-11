@@ -70,8 +70,8 @@ df1.ed_visits_annual <-
          last_triage_acuity_desc = as.factor(last_triage_acuity_desc)) %>%
   
   # remove NA and "Invalid":  
-  filter(!is.na(age_at_start_date)) %>% 
-         # !TriageAcuityDescription %in% c("Invalid", "8 - Disaster Acuity Only" )) %>% 
+  filter(!is.na(age_at_start_date),  # ) %>%  
+         !last_triage_acuity_desc %in% c("Not provided")) %>% 
   mutate(last_triage_acuity_desc = fct_drop(last_triage_acuity_desc)) %>% 
   
 
@@ -89,11 +89,17 @@ df1.ed_visits_annual <-
 # str(df1.ed_visits_annual)
 # summary(df1.ed_visits_annual)
 
-#' Note that we remove cases where `Age` = NA (80 rows), and where `age_group` =
-#' "Invalid" (80 rows)
+#' ## ED data filters
 #'
-#' For LGH (unlike RHS, for example), `ctas` levels other than 1 to 5 are a significant portion of the
-#' total, so we won't exclude them.
+#' Note that we remove cases where `Age` = NA (80 rows).
+#'
+#' In 2018, there were 466 cases of `ctas` = "Not provided". This increased to
+#' 658 cases by 2019 October. How do we deal with these? We only have 1 full
+#' year of data on this `ctas` category. I don't think that's enough for a
+#' useful forecast.
+#'
+#' **Decision: drop rows with `ctas` = "Not provided". Revisit this decision
+#' when we have at least 2 full years of data on this category.**
 #'
 #' Here's a random sample of 100 rows from the result:
 
@@ -397,7 +403,7 @@ df5.nested$ed_vs_pop[[sample(1:100, 1)]]
 # save output: 
 # pdf(here::here("results",
 #                "dst",
-#                "2019-10-10_rhs_ed-visits-vs-pop-segmented-by-age-and-ctas.pdf"))
+#                "2019-10-10_lgh_ed-visits-vs-pop-segmented-by-age-and-ctas.pdf"))
 # df5.nested$ed_vs_pop
 # dev.off()
 
@@ -576,24 +582,13 @@ df6.models %>%
 #' counter concerns that may be raised about "outlier" years biasing the results
 #'
 #' 3. CTAS 3 is most correlated with population size (both positively and
-#' negatively), followed by CTAS 4.
+#' negatively), followed by CTAS 2.
 #'
 #' 4. Nearly every segment with a positive intercept has a negative slope. These
 #' are likely cases where population size is decreasing, but ED visits are
 #' rising.
 #'
-#' 5. Very rough estimates of impact of each additional BC resident on ED visits, by CTAS (across all age groups): 
-#' 
-#'     * CTAS 1: no impact
-#' 
-#'     * CTAS 2: 0.01 more visits 
-#' 
-#'     * CTAS 3: 0.02 more visits 
-#'     
-#'     * CTAS 4: 0.005 more visits 
-#'     
-#'     * CTAS 5: no impact
-#'     
+#' 5. Linear models fit best for CTAS 3, 2, and 1. Less so for 4, 5, Invalid. 
 
 
 #+ projections
@@ -659,7 +654,7 @@ df9.predictions_unnested <-
          fit_rlm = fit1, 
          lwr_rlm = lwr1, 
          upr_rlm = upr1) %>% 
-  mutate(year = rep(2019:2036, times = 100))
+  mutate(year = rep(2019:2040, times = 120))
 
 # df9.predictions_unnested 
 
@@ -729,7 +724,7 @@ df11.pivoted <-
   mutate(plot_projection = pmap(list(df = data, 
                                      subset1 = age_group_pop, 
                                      subset2 = ctas, 
-                                     site = "RHS"), 
+                                     site = site), 
                                plot_ed_projection))
   
 #' There are too many graphs to show here. See *`r here::here("results", "dst")`*
@@ -742,7 +737,7 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 # save output: 
 # pdf(here::here("results",
 #                "dst",
-#                "2019-09-24_rhs_projected-ed-visits-by-age-and-ctas-segment.pdf"))
+#                "2019-10-10_lgh_projected-ed-visits-by-age-and-ctas-segment.pdf"))
 # df11.pivoted$plot_projection
 # dev.off()
 
