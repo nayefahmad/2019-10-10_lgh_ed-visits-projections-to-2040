@@ -806,7 +806,7 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 
 df12.1_adjustments <-
   # segments to refit with data from 2016 onwards: 
-  # age 40-44 and 50-54
+  # age 40-44 
   df4.ed_and_pop_data %>%
   filter(age_group_pop %in% c("40-44"), 
          !ctas %in% c("4 - Semi-Urgent"),
@@ -927,9 +927,29 @@ df12.6_historical_and_projection <-
 # remove segments: 
 df10.historical_and_projection <- 
   df10.historical_and_projection %>% 
-  filter(!(age_group_pop %in% c("40-44", "45-49") & 
-         ctas %in% c("2 - Emergency", "3 - Urgent") &
-         year >= 2016)) # %>% View("df10 filter")
+  
+  # age 40-44: 
+  filter(!(age_group_pop %in% c("40-44") &
+             !ctas %in% c("4 - Semi-Urgent") & 
+             year >= 2016)) %>%  # %>% View("df10 filter")
+  # age 50-54: 
+  filter(!(age_group_pop %in% c("50-54") &
+             year >= 2016)) %>% 
+  # age 10-14:
+  filter(!(age_group_pop %in% c("10-14") &
+             ctas %in% c("2 - Emergency",
+                         "3 - Urgent") & 
+             year >= 2014)) %>% 
+  # age 45-49: 
+  filter(!(age_group_pop %in% c("45-49") & 
+             ctas %in% c("2 - Emergency",
+                       "3 - Urgent", 
+                       "4 - Semi-Urgent") & 
+             year >= 2014)) %>% 
+  # age 80-84: 
+  filter(!(age_group_pop %in% c("80-84") & 
+             ctas %in% c("4 - Semi-Urgent") & 
+             year >= 2013))
 
 
 df10.historical_and_projection <- 
