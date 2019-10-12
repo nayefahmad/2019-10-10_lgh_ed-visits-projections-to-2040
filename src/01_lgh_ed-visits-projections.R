@@ -779,7 +779,7 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 #'
 #' * age 10-14, CTAS 2 and 3. Re-fit model from 2014 onwards.
 #'
-#' * age 40-44, CTAS - all. Re-fit from 2016 onwards.
+#' * age 40-44, CTAS - 1, 2, 3, 5. Re-fit from 2016 onwards.
 #'
 #' * age 45-49, CTAS 2, 3, 4. Re-fit from 2014 onwards.
 #'
@@ -793,7 +793,7 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 #' \  
 #' 
 #' The plan is to go back to `df4.ed_and_pop_data`, filter specifically for the
-#' problematic segments, then filter to only include last 3 years of data.
+#' problematic segments, then filter to only include last few years of data.
 #'
 #' Then follow the same process up to `df10.historical_and_projection`
 #'
@@ -808,11 +808,17 @@ df12.1_adjustments <-
   # segments to refit with data from 2016 onwards: 
   # age 40-44 and 50-54
   df4.ed_and_pop_data %>%
-  filter(age_group_pop %in% c("40-44", "50-54"), 
+  filter(age_group_pop %in% c("40-44"), 
+         !ctas %in% c("4 - Semi-Urgent"),
          year >= 2016) %>% 
   
+  # age 50-54: 
+  bind_rows(df4.ed_and_pop_data %>% 
+              filter(age_group_pop %in% c("50-54"), 
+                     year >= 2016)) %>%
+  
   # segments to refit with data from 2014 onwards: 
-  # age 10-14
+  # age 10-14:
   bind_rows(df4.ed_and_pop_data %>% 
               filter(age_group_pop %in% c("10-14"), 
                      ctas %in% c("2 - Emergency",
@@ -829,7 +835,7 @@ df12.1_adjustments <-
   bind_rows(df4.ed_and_pop_data %>% 
               filter(age_group_pop %in% c("80-84"), 
                      ctas %in% c("4 - Semi-Urgent"),
-                     year >= 2014))
+                     year >= 2013))
 
   
 df12.2_nested <- 
@@ -895,7 +901,7 @@ df12.5_add_projections <-
          fit_rlm = fit1, 
          lwr_rlm = lwr1, 
          upr_rlm = upr1) %>% 
-  mutate(year = rep(2019:2040, times = 18))
+  mutate(year = rep(2019:2040, times = 17))
 
 
 # join historical and projected data: 
