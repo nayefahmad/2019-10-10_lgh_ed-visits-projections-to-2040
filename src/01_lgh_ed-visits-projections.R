@@ -973,7 +973,7 @@ df10.historical_and_projection %>%
 #' ## Plotting final after adjustments: 
 # > Plotting final after adjustments: -------
 
-# pivot data into right format: 
+# pivot data into right format, and remove negative values: 
 df11.pivoted <- 
   df10.historical_and_projection %>% 
   select(age_group_pop, 
@@ -1022,7 +1022,7 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 # save output: 
 # pdf(here::here("results",
 #                "dst",
-#                "2019-09-24_rhs_projected-ed-visits-by-age-and-ctas-segment.pdf"))
+#                "2019-10-11_lgh_projected-ed-visits-by-age-and-ctas-segment_after-adjustments.pdf"))
 # df11.pivoted$plot_projection
 # dev.off()
 
@@ -1096,44 +1096,3 @@ df13.3_summary_historical_by_year %>%
 
 # > Checks -----
 
-site <- "LGH"
-
-df14.1.actuals <- 
-  ed_mart %>% 
-  filter(FacilityShortName == site, 
-         StartDate >= "2017-01-01", 
-         StartDate <= "2018-12-31") %>% 
-  select(StartDate, 
-         TriageAcuityDescription, 
-         Age, 
-         PatientID) %>% 
-  collect() %>% 
-  
-  mutate(year = lubridate::year(StartDate)) %>% 
-  
-  group_by(year) %>% 
-  summarize(ed_visits = n())
-  
-         
-df14.2.processed <- 
-  df10.historical_and_projection %>% 
-  filter(year %in% c("2017", "2018")) %>% 
-  group_by(year) %>% 
-  summarise(ed_visits = sum(ed_visits))
-
-#' Ans: `r abs(df14.1.actuals$ed_visits - df14.2.processed$ed_visits) < 50`
-
-#' 
-#' 2. Do we have the right number of rows in the nested data set `df5.nested`?
-#'
-#' Ans: `r nrow(df5.nested) == 100`
-#'
-#'
-#' 3. Do we have the right number of rows in the final dataset? Age groups \*
-#' CTAS \* years. Years are from 2010 to 2036.
-#' 
-#' Ans: `r 20*5*(2036-2010+1) == nrow(expand(df10.historical_and_projection, age_group_pop, ctas, year) %>% left_join(df10.historical_and_projection))`
-#' 
-#' 
-#' 4. Are there any negative values in the forecasts? todo: 
- 
