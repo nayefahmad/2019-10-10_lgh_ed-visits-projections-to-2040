@@ -1091,9 +1091,8 @@ df13.3_summary_historical_by_year %>%
 #'
 #' 1. After all processing, does 2017 and 2018 total ED visits match to within
 #' 500 visits what it should be? I'll allow for a difference of up to 500
-#' because we exclude unknown age and CTAS other than 1-5, and "Invalid". 
-#' 
-#' LGH has a lot of CTAS = "Not provided" since 2018, which we have excluded.
+#' because we exclude unknown age and CTAS other than 1-5, and "Invalid". LGH
+#' has a lot of CTAS = "Not provided" since 2018, which we have excluded.
 #' 
 
 # > Checks -----
@@ -1123,6 +1122,7 @@ df14.2.processed <-
 # df14.2.processed
 
 #' Ans: `r abs(df14.1.actuals$ed_visits - df14.2.processed$ed_visits) < 500`
+#' 
 
 #' 2. Do we have the right number of rows in the nested data set `df5.nested`?
 #' There should be one row for every CTAS level, and one for every age group.
