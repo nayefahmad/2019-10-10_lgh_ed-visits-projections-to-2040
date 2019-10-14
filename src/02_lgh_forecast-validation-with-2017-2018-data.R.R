@@ -1,8 +1,8 @@
 
 #'--- 
-#' title: "RHS ED projections"
+#' title: "LGH ED projections"
 #' author: "Nayef Ahmad"
-#' date: "2019-07-18"
+#' date: "2019-10-10"
 #' output: 
 #'   html_document: 
 #'     keep_md: yes
@@ -19,12 +19,13 @@
 library(tidyverse)
 library(denodoExtractor)
 library(DT)
+library(lubridate)
 
-# setup_denodo()
+setup_denodo()  # LGH data doesn't exist in SQL after CST 
 cnx <- DBI::dbConnect(odbc::odbc(), dsn = "cnx_SPDBSCSTA001")
 
-ed_mart <- dplyr::tbl(cnx, dbplyr::in_schema("EDMart.dbo", 
-                                             "[vwEDVisitIdentifiedRegional]"))
+# ed_mart <- dplyr::tbl(cnx, dbplyr::in_schema("EDMart.dbo", 
+#                                              "[vwEDVisitIdentifiedRegional]"))
 
 people_2018 <- dplyr::tbl(cnx, dbplyr::in_schema("DSSI.dbo", 
                                                  "[PEOPLE2018Complete]"))
@@ -52,34 +53,35 @@ knitr::opts_chunk$set(warning=FALSE, message=FALSE)
 #' # ED visits data 
 #+ data 
 # 1) ED visits data : ----------------
-site <- "RHS"
+site <- "LGH"
 
 df1.ed_visits_annual <- 
-  ed_mart %>% 
-  filter(FacilityShortName == site) %>% 
-  select(StartDate, 
-         TriageAcuityDescription, 
-         Age, 
-         PatientID) %>% 
+  vw_eddata %>% 
+  filter(facility_short_name == site) %>% 
+  select(start_date_id, 
+         last_triage_acuity_desc, 
+         age_at_start_date, 
+         patient_id) %>% 
   collect() %>% 
   
-  mutate(year = lubridate::year(StartDate), 
-         age_group = cut(Age, c(-1, 0, seq(4, 89, 5), 200)),  # 5-yr age buckets
-         TriageAcuityDescription = as.factor(TriageAcuityDescription)) %>%
+  mutate(start_date = ymd(start_date_id), 
+         year = lubridate::year(start_date), 
+         age_group = cut(age_at_start_date, c(-1, 0, seq(4, 89, 5), 200)),  # 5-yr age buckets
+         last_triage_acuity_desc = as.factor(last_triage_acuity_desc)) %>%
   
   # remove NA and "Invalid":  
-  filter(!is.na(Age),
-         !TriageAcuityDescription %in% c("Invalid", "8 - Disaster Acuity Only" )) %>% 
-  mutate(TriageAcuityDescription = fct_drop(TriageAcuityDescription)) %>% 
+  filter(!is.na(age_at_start_date),  # ) %>%  
+         !last_triage_acuity_desc %in% c("Not provided")) %>% 
+  mutate(last_triage_acuity_desc = fct_drop(last_triage_acuity_desc)) %>% 
   
 
   # group to year-ctas-age_group level: 
   count(year,
-        TriageAcuityDescription, 
-        Age, 
+        last_triage_acuity_desc, 
+        age_at_start_date, 
         age_group) %>%
   
-  rename(ctas = TriageAcuityDescription,
+  rename(ctas = last_triage_acuity_desc,
          ed_visits = n)
   
 
@@ -87,20 +89,31 @@ df1.ed_visits_annual <-
 # str(df1.ed_visits_annual)
 # summary(df1.ed_visits_annual)
 
-#' Note that we remove cases where `Age` = NA (25 rows), and where `age_group` =
-#' "Invalid" (255 rows)
-#' 
-#' We also remove `ctas` levels other than 1 to 5. 
+#' ## ED data filters
+#'
+#' Note that we remove cases where `Age` = NA (80 rows).
+#'
+#' In 2018, there were 466 cases of `ctas` = "Not provided". This increased to
+#' 658 cases by 2019 October. How do we deal with these? We only have 1 full
+#' year of data on this `ctas` category. I don't think that's enough for a
+#' useful forecast.
+#'
+#' **Decision: drop rows with `ctas` = "Not provided". Revisit this decision
+#' when we have at least 2 full years of data on this category.**
+#'
+#' Here's a random sample of 100 rows from the result:
 
 df1.ed_visits_annual %>% 
+  sample_n(100) %>% 
+  arrange(year, ctas, age_at_start_date) %>% 
   datatable(extensions = 'Buttons',
             options = list(dom = 'Bfrtip', 
                            buttons = c('excel', "csv")))
 
 
 #' 
-#' ## Exploratory plots - RHS ED visits 
-# > Exploratory plots - RHS ED visits : -------------
+#' ## Exploratory plots - LGH ED visits 
+# > Exploratory plots - LGH ED visits : -------------
 
 # Annual ED Visits by Calendar Year, broken out by CTAS 
 df1.ed_visits_annual %>% 
@@ -108,7 +121,7 @@ df1.ed_visits_annual %>%
            ctas) %>% 
   summarise(ed_visits = sum(ed_visits)) %>% 
   
-  filter(year < "2017") %>% 
+  filter(year != "2019") %>% 
   ggplot(aes(x = year, 
              y = ed_visits, 
              group = ctas, 
@@ -125,7 +138,7 @@ df1.ed_visits_annual %>%
 
 # Annual ED Visits by Calendar Year
 df1.ed_visits_annual %>% 
-  filter(year < "2017") %>% 
+  filter(year != "2019") %>% 
   group_by(year) %>% 
   summarise(ed_visits = sum(ed_visits)) %>% 
   
@@ -162,7 +175,7 @@ df1.ed_visits_annual %>%
 df2.bc_population <- 
   people_2018 %>% 
   filter(Year >= "2010", 
-         Year <= "2036") %>% 
+         Year <= "2040") %>% 
   select(Year, 
          AgeGroup, 
          Population) %>% 
@@ -213,19 +226,33 @@ df3.pop_nested <-
 df3.pop_nested$age_group_growth[[sample(1:20, 1)]]
 
 # save output: 
-# pdf(here::here("results", 
-#                "dst", 
-#                "2019-09-18_bc_pop-growth-by-age-group.pdf"))
+# pdf(here::here("results",
+#                "dst",
+#                "2019-10-10_bc_pop-growth-by-age-group.pdf"))
 # df3.pop_nested$age_group_growth
 # dev.off()
 
+#******************************************************
+# > Observations abt pop growth ----------
+
+#' ### Observations about pop growth 
+#' 
+#' * Sharp decrease in 20-24 age group over next few years. 
+#' 
+#' * 25-29 group continues growing up to 2023, then sharp decrease.
+#' 
+#' * 30-34 group continues growing up to 2028, then sharp decrease. 
+#' 
+#' * 70-74 group continues growing up to 2034, then slight decrease. 
+#' 
+#' 
 
 # for use in predictions with regressions, pull out the future populations only:
 df3.pop_nested <- 
   df3.pop_nested %>% 
   mutate(pop_projection = map(data, 
                               function(df){
-                                df %>% filter(df$year >= "2017")
+                                df %>% filter(df$year > "2018")
                               }))
 
 # df3.pop_nested$pop_projection[[1]]
@@ -249,7 +276,7 @@ df1.1.ed_visits <-
 df4.ed_and_pop_data <- 
   df1.1.ed_visits %>% 
   filter(year >= "2010", 
-         year < "2017") %>% 
+         year != "2019") %>% 
   group_by(year, 
            age_group_pop, 
            ctas) %>% 
@@ -293,7 +320,7 @@ df4.ed_and_pop_data %>%
 
 # ED visits in 2018, by age group
 df4.ed_and_pop_data %>% 
-  filter(year == "2016") %>% 
+  filter(year == "2018") %>% 
   
   ggplot(aes(x = as.factor(age_group_pop), 
              y = ed_visits)) + 
@@ -310,7 +337,7 @@ df4.ed_and_pop_data %>%
 
 # dist of population by age: 
 df4.ed_and_pop_data %>% 
-  filter(year == "2016") %>% 
+  filter(year == "2018") %>% 
   select(age_group_pop, 
          pop) %>% 
   distinct() %>% 
@@ -334,7 +361,7 @@ df4.ed_and_pop_data %>%
 #' 
 
 df4.ed_and_pop_data %>% 
-  filter(year == "2016") %>% 
+  filter(year == "2018") %>% 
   ggplot(aes(x = pop, 
              y = ed_visits, 
              )) + 
@@ -373,7 +400,7 @@ df5.nested <-
   mutate(ed_vs_pop = pmap(list(df = data, 
                                subset1 = age_group_pop, 
                                subset2 = ctas, 
-                               site = "RHS"), 
+                               site = site), 
                           plot_trend2))
 # df5.nested
 # df5.nested$ed_vs_pop[64]
@@ -390,7 +417,7 @@ df5.nested$ed_vs_pop[[sample(1:100, 1)]]
 # save output: 
 # pdf(here::here("results",
 #                "dst",
-#                "2019-09-19_rhs_ed-visits-vs-pop-segmented-by-age-and-ctas.pdf"))
+#                "2019-10-10_lgh_ed-visits-vs-pop-segmented-by-age-and-ctas.pdf"))
 # df5.nested$ed_vs_pop
 # dev.off()
 
@@ -569,24 +596,13 @@ df6.models %>%
 #' counter concerns that may be raised about "outlier" years biasing the results
 #'
 #' 3. CTAS 3 is most correlated with population size (both positively and
-#' negatively), followed by CTAS 4.
+#' negatively), followed by CTAS 2.
 #'
 #' 4. Nearly every segment with a positive intercept has a negative slope. These
 #' are likely cases where population size is decreasing, but ED visits are
 #' rising.
 #'
-#' 5. Very rough estimates of impact of each additional BC resident on ED visits, by CTAS (across all age groups): 
-#' 
-#'     * CTAS 1: no impact
-#' 
-#'     * CTAS 2: 0.01 more visits 
-#' 
-#'     * CTAS 3: 0.02 more visits 
-#'     
-#'     * CTAS 4: 0.005 more visits 
-#'     
-#'     * CTAS 5: no impact
-#'     
+#' 5. Linear models fit best for CTAS 3, 2, and 1. Less so for 4, 5, Invalid. 
 
 
 #+ projections
@@ -652,7 +668,7 @@ df9.predictions_unnested <-
          fit_rlm = fit1, 
          lwr_rlm = lwr1, 
          upr_rlm = upr1) %>% 
-  mutate(year = rep(2017:2036, times = 100))
+  mutate(year = rep(2019:2040, times = 120))
 
 # df9.predictions_unnested 
 
@@ -722,7 +738,7 @@ df11.pivoted <-
   mutate(plot_projection = pmap(list(df = data, 
                                      subset1 = age_group_pop, 
                                      subset2 = ctas, 
-                                     site = "RHS"), 
+                                     site = site), 
                                plot_ed_projection))
   
 #' There are too many graphs to show here. See *`r here::here("results", "dst")`*
@@ -735,7 +751,7 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 # save output: 
 # pdf(here::here("results",
 #                "dst",
-#                "2019-09-23_rhs_projected-ed-visits-by-age-and-ctas-segment.pdf"))
+#                "2019-10-10_lgh_projected-ed-visits-by-age-and-ctas-segment.pdf"))
 # df11.pivoted$plot_projection
 # dev.off()
 
@@ -747,29 +763,37 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 #' # Adjustments to the projections
 # 9) Adjustments to the projections: -----------
 
-#' All estimates are based on trends in the historical data. There are 4 
-#' population segments for which there is almost no relevant 	
-#' historical data, because of a major shift in behaviour since 2016. These 
-#' segments are: 	
-#'  
-#' * Age 40-44, CTAS 2 and CTAS 3	
-#' * Age 45-49, CTAS 2 and CTAS 3	
-#' 
-
-#' These segments had decreasing population and increasing ED visits from 2010 
-#' to 2015. 	
-#' 
-#' Then, from 2016, there is slight evidence that both population and ED visits 
-#' are increasing, but the trend is not clear yet.
-#' 
-#' We will refit models for these segments with data only from 2016. 
+#' Forecasts can be very weird if there has been a sudden shift in the
+#' reletionship between population size and ED visits recently. In all of the
+#' following segments, population was falling while ED visits rose; but recently
+#' there's been a shift that shows that both population and ED visits are
+#' rising.
+#'
+#' In this case, we'll refit the model using more recent data, after the shift
+#' occurred. This has the benefit that we are capturing the new dynamics, but
+#' the cost is that with less data, the uncertainty is much higher. This
+#' uncertainty will show up in the difference between the fitted value and the
+#' upper prediction interval.
+#'
+#' Segments to review:
+#'
+#' * age 10-14, CTAS 2 and 3. Re-fit model from 2014 onwards.
+#'
+#' * age 40-44, CTAS - 1, 2, 3, 5. Re-fit from 2016 onwards.
+#'
+#' * age 45-49, CTAS 2, 3, 4. Re-fit from 2014 onwards.
+#'
+#' * age 50-54, CTAS - all. Re-fit from 2016 onwards.
+#'
+#' * age 80-84, CTAS 4. Re-fit from 2014 onwards. 
+#'
 #' 
 
 
 #' \  
 #' 
 #' The plan is to go back to `df4.ed_and_pop_data`, filter specifically for the
-#' problematic segments, then filter to only include last 3 years of data.
+#' problematic segments, then filter to only include last few years of data.
 #'
 #' Then follow the same process up to `df10.historical_and_projection`
 #'
@@ -781,10 +805,37 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 #' 
 
 df12.1_adjustments <-
+  # segments to refit with data from 2016 onwards: 
+  # age 40-44 
   df4.ed_and_pop_data %>%
-  filter(age_group_pop %in% c("40-44", "45-49"), 
-         ctas %in% c("2 - Emergency", "3 - Urgent"), 
-         year >= 2014)
+  filter(age_group_pop %in% c("40-44"), 
+         !ctas %in% c("4 - Semi-Urgent"),
+         year >= 2016) %>% 
+  
+  # age 50-54: 
+  bind_rows(df4.ed_and_pop_data %>% 
+              filter(age_group_pop %in% c("50-54"), 
+                     year >= 2016)) %>%
+  
+  # segments to refit with data from 2014 onwards: 
+  # age 10-14:
+  bind_rows(df4.ed_and_pop_data %>% 
+              filter(age_group_pop %in% c("10-14"), 
+                     ctas %in% c("2 - Emergency",
+                                 "3 - Urgent"), 
+                     year >= 2014)) %>% 
+  # age 45-49: 
+  bind_rows(df4.ed_and_pop_data %>% 
+              filter(age_group_pop %in% c("45-49"), 
+                     ctas %in% c("2 - Emergency",
+                                 "3 - Urgent", 
+                                 "4 - Semi-Urgent"),
+                     year >= 2014)) %>% 
+  # age 80-84: 
+  bind_rows(df4.ed_and_pop_data %>% 
+              filter(age_group_pop %in% c("80-84"), 
+                     ctas %in% c("4 - Semi-Urgent"),
+                     year >= 2013))
 
   
 df12.2_nested <- 
@@ -850,7 +901,7 @@ df12.5_add_projections <-
          fit_rlm = fit1, 
          lwr_rlm = lwr1, 
          upr_rlm = upr1) %>% 
-  mutate(year = rep(2017:2036, times = 4))
+  mutate(year = rep(2019:2040, times = 17))
 
 
 # join historical and projected data: 
@@ -876,9 +927,29 @@ df12.6_historical_and_projection <-
 # remove segments: 
 df10.historical_and_projection <- 
   df10.historical_and_projection %>% 
-  filter(!(age_group_pop %in% c("40-44", "45-49") & 
-         ctas %in% c("2 - Emergency", "3 - Urgent") &
-         year >= 2014)) # %>% View("df10 filter")
+  
+  # age 40-44: 
+  filter(!(age_group_pop %in% c("40-44") &
+             !ctas %in% c("4 - Semi-Urgent") & 
+             year >= 2016)) %>%  # %>% View("df10 filter")
+  # age 50-54: 
+  filter(!(age_group_pop %in% c("50-54") &
+             year >= 2016)) %>% 
+  # age 10-14:
+  filter(!(age_group_pop %in% c("10-14") &
+             ctas %in% c("2 - Emergency",
+                         "3 - Urgent") & 
+             year >= 2014)) %>% 
+  # age 45-49: 
+  filter(!(age_group_pop %in% c("45-49") & 
+             ctas %in% c("2 - Emergency",
+                       "3 - Urgent", 
+                       "4 - Semi-Urgent") & 
+             year >= 2014)) %>% 
+  # age 80-84: 
+  filter(!(age_group_pop %in% c("80-84") & 
+             ctas %in% c("4 - Semi-Urgent") & 
+             year >= 2013))
 
 
 df10.historical_and_projection <- 
@@ -902,7 +973,7 @@ df10.historical_and_projection %>%
 #' ## Plotting final after adjustments: 
 # > Plotting final after adjustments: -------
 
-# pivot data into right format: 
+# pivot data into right format, and remove negative values: 
 df11.pivoted <- 
   df10.historical_and_projection %>% 
   select(age_group_pop, 
@@ -951,11 +1022,13 @@ df11.pivoted$plot_projection[[sample(1:100, 1)]]
 # save output: 
 # pdf(here::here("results",
 #                "dst",
-#                "2019-09-23_rhs_projected-ed-visits-by-age-and-ctas-segment.pdf"))
+#                "2019-10-11_lgh_projected-ed-visits-by-age-and-ctas-segment_after-adjustments.pdf"))
 # df11.pivoted$plot_projection
 # dev.off()
 
 
+#' ## Summaries
+# > Summaries ----
 
 # with ctas breakdown: 
 df13.1_summary_fcast_by_year <- 
@@ -986,7 +1059,7 @@ df13.2_summary_fcast_by_year %>%
             options = list(dom = 'Bfrtip', 
                            buttons = c('excel', "csv"))) %>% 
   formatRound(2:6)
-
+  
 
 
 # historical numbers: 
@@ -994,7 +1067,7 @@ df13.3_summary_historical_by_year <-
   df10.historical_and_projection %>% 
   group_by(year) %>% 
   summarise(ed_visits = sum(ed_visits)) 
-
+  
 
 # view: 
 df13.3_summary_historical_by_year %>% 
@@ -1004,20 +1077,92 @@ df13.3_summary_historical_by_year %>%
   formatRound(2:6)
 
 
-
-
-
-
-
 #'
 #' # Appendix 
 # Appendix -----------
 
-# todo:write outputs: 
 # write_csv(df10.historical_and_projection,
 #           here::here("results",
 #                      "dst",
-#                      "2019-09-22_rhs_ed-visits-projections-by-age-and-ctas.csv"))
+#                      "2019-09-24_rhs_ed-visits-projections-by-age-and-ctas.csv"))
 
 
- 
+#' ## Checks
+#'
+#' 1. After all processing, does 2017 and 2018 total ED visits match to within
+#' 500 visits what it should be? I'll allow for a difference of up to 500
+#' because we exclude unknown age and CTAS other than 1-5, and "Invalid". LGH
+#' has a lot of CTAS = "Not provided" since 2018, which we have excluded.
+#' 
+
+# > Checks -----
+
+df14.1.actuals <- 
+  vw_eddata %>% 
+  filter(facility_short_name == site, 
+         start_date_id >= "20170101", 
+         start_date_id <= "20181231") %>% 
+  select(start_date_id,
+         patient_id) %>% 
+  collect() %>% 
+  
+  mutate(start_date = ymd(start_date_id), 
+         year = lubridate::year(start_date)) %>% 
+  count(year,
+        name = "ed_visits")
+
+# df14.1.actuals
+
+df14.2.processed <- 
+  df10.historical_and_projection %>% 
+  filter(year %in% c("2017", "2018")) %>% 
+  group_by(year) %>% 
+  summarise(ed_visits = sum(ed_visits))
+
+# df14.2.processed
+
+#' Ans: `r abs(df14.1.actuals$ed_visits - df14.2.processed$ed_visits) < 500`
+#' 
+
+#' 2. Do we have the right number of rows in the nested data set `df5.nested`?
+#' There should be one row for every CTAS level, and one for every age group.
+#'
+#' Ans: `r nrow(df5.nested) == 6*20`
+#' 
+#' 
+#' 3. Do we have the right number of rows in the final dataset? Age groups \*
+#' CTAS levels \* years. Years are from 2010 to 2040.
+#' 
+#' Ans: `r 20*6*(2040-2010+1) == nrow(expand(df10.historical_and_projection, age_group_pop, ctas, year) %>% left_join(df10.historical_and_projection))`
+#' 
+#' 
+#' 4. Are all forecast values >= 0? 
+#' 
+#' Ans: `r df11.pivoted %>% unnest(data) %>% filter(value < 0) %>% nrow() == 0`
+#' 
+#' 
+#' 5. Is the total BC population in `df10.historical_and_projection` correct for 2018? 
+#' 
+df15.1.actuals_bc_pop <-
+  people_2018 %>% 
+  filter(Year == "2018") %>%  
+  select(Year, 
+         Population) %>% 
+  collect() %>%
+  group_by(Year) %>% 
+  summarise(pop = sum(Population))
+
+# df15.1.actuals_bc_pop
+
+df15.2.processed_bc_pop <- 
+  df10.historical_and_projection %>% 
+  filter(ctas == "3 - Urgent", 
+         year == "2018") %>% 
+  group_by(year) %>% 
+  summarise(pop = sum(pop))
+
+# df15.2.processed_bc_pop
+
+#' Ans: `r df15.1.actuals_bc_pop$pop == df15.2.processed_bc_pop$pop`
+#' 
+#' 
