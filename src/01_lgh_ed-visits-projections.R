@@ -1090,9 +1090,79 @@ df13.3_summary_historical_by_year %>%
 #' ## Checks
 #'
 #' 1. After all processing, does 2017 and 2018 total ED visits match to within
-#' 50 visits what it should be? I'll allow for a difference of up to 50 because we exclude unknown age and
-#' CTAS other than 1-5.
+#' 500 visits what it should be? I'll allow for a difference of up to 500
+#' because we exclude unknown age and CTAS other than 1-5, and "Invalid". 
+#' 
+#' LGH has a lot of CTAS = "Not provided" since 2018, which we have excluded.
 #' 
 
 # > Checks -----
 
+df14.1.actuals <- 
+  vw_eddata %>% 
+  filter(facility_short_name == site, 
+         start_date_id >= "20170101", 
+         start_date_id <= "20181231") %>% 
+  select(start_date_id,
+         patient_id) %>% 
+  collect() %>% 
+  
+  mutate(start_date = ymd(start_date_id), 
+         year = lubridate::year(start_date)) %>% 
+  count(year,
+        name = "ed_visits")
+
+# df14.1.actuals
+
+df14.2.processed <- 
+  df10.historical_and_projection %>% 
+  filter(year %in% c("2017", "2018")) %>% 
+  group_by(year) %>% 
+  summarise(ed_visits = sum(ed_visits))
+
+# df14.2.processed
+
+#' Ans: `r abs(df14.1.actuals$ed_visits - df14.2.processed$ed_visits) < 500`
+
+#' 2. Do we have the right number of rows in the nested data set `df5.nested`?
+#' There should be one row for every CTAS level, and one for every age group.
+#'
+#' Ans: `r nrow(df5.nested) == 6*20`
+#' 
+#' 
+#' 3. Do we have the right number of rows in the final dataset? Age groups \*
+#' CTAS levels \* years. Years are from 2010 to 2040.
+#' 
+#' Ans: `r 20*6*(2040-2010+1) == nrow(expand(df10.historical_and_projection, age_group_pop, ctas, year) %>% left_join(df10.historical_and_projection))`
+#' 
+#' 
+#' 4. Are all forecast values >= 0? 
+#' 
+#' Ans: `r df11.pivoted %>% unnest(data) %>% filter(value < 0) %>% nrow() == 0`
+#' 
+#' 
+#' 5. Is the total BC population in `df10.historical_and_projection` correct for 2018? 
+#' 
+df15.1.actuals_bc_pop <-
+  people_2018 %>% 
+  filter(Year == "2018") %>%  
+  select(Year, 
+         Population) %>% 
+  collect() %>%
+  group_by(Year) %>% 
+  summarise(pop = sum(Population))
+
+# df15.1.actuals_bc_pop
+
+df15.2.processed_bc_pop <- 
+  df10.historical_and_projection %>% 
+  filter(ctas == "3 - Urgent", 
+         year == "2018") %>% 
+  group_by(year) %>% 
+  summarise(pop = sum(pop))
+
+# df15.2.processed_bc_pop
+
+#' Ans: `r df15.1.actuals_bc_pop$pop == df15.2.processed_bc_pop$pop`
+#' 
+#' 
