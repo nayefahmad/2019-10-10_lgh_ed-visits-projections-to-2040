@@ -121,7 +121,7 @@ df1.ed_visits_annual %>%
            ctas) %>% 
   summarise(ed_visits = sum(ed_visits)) %>% 
   
-  filter(year != "2019") %>% 
+  filter(year < "2017") %>% 
   ggplot(aes(x = year, 
              y = ed_visits, 
              group = ctas, 
@@ -138,7 +138,7 @@ df1.ed_visits_annual %>%
 
 # Annual ED Visits by Calendar Year
 df1.ed_visits_annual %>% 
-  filter(year != "2019") %>% 
+  filter(year < "2017") %>% 
   group_by(year) %>% 
   summarise(ed_visits = sum(ed_visits)) %>% 
   
@@ -252,7 +252,7 @@ df3.pop_nested <-
   df3.pop_nested %>% 
   mutate(pop_projection = map(data, 
                               function(df){
-                                df %>% filter(df$year > "2018")
+                                df %>% filter(df$year > "2016")
                               }))
 
 # df3.pop_nested$pop_projection[[1]]
@@ -276,7 +276,7 @@ df1.1.ed_visits <-
 df4.ed_and_pop_data <- 
   df1.1.ed_visits %>% 
   filter(year >= "2010", 
-         year != "2019") %>% 
+         year < "2017") %>% 
   group_by(year, 
            age_group_pop, 
            ctas) %>% 
@@ -315,18 +315,18 @@ df4.ed_and_pop_data %>%
 #' ## Plots - joined dataset
 # > Plots - joined dataset: --------------
 
-#' Distribution of num visit by age segment, in 2018
+#' Distribution of num visit by age segment, in 2016
 #' 
 
-# ED visits in 2018, by age group
+# ED visits in 2016, by age group
 df4.ed_and_pop_data %>% 
-  filter(year == "2018") %>% 
+  filter(year == "2016") %>% 
   
   ggplot(aes(x = as.factor(age_group_pop), 
              y = ed_visits)) + 
   geom_boxplot() + 
   facet_wrap(~ctas) + 
-  labs(title = sprintf("%s ED visits in 2018, by age group", 
+  labs(title = sprintf("%s ED visits in 2016, by age group", 
                        site), 
        subtitle = "todo: \"5-9\" age group is in the wrong place") + 
   theme_light() +
@@ -337,7 +337,7 @@ df4.ed_and_pop_data %>%
 
 # dist of population by age: 
 df4.ed_and_pop_data %>% 
-  filter(year == "2018") %>% 
+  filter(year == "2016") %>% 
   select(age_group_pop, 
          pop) %>% 
   distinct() %>% 
@@ -361,7 +361,7 @@ df4.ed_and_pop_data %>%
 #' 
 
 df4.ed_and_pop_data %>% 
-  filter(year == "2018") %>% 
+  filter(year == "2016") %>% 
   ggplot(aes(x = pop, 
              y = ed_visits, 
              )) + 
@@ -668,7 +668,7 @@ df9.predictions_unnested <-
          fit_rlm = fit1, 
          lwr_rlm = lwr1, 
          upr_rlm = upr1) %>% 
-  mutate(year = rep(2019:2040, times = 120))
+  mutate(year = rep(2017:2040, times = 120))
 
 # df9.predictions_unnested 
 
@@ -846,26 +846,25 @@ df12.2_nested <-
 
 df12.3_models <- 
   df12.2_nested %>% 
-  mutate(model = map(data, segment_model), 
-         model_rlm = map(data, segment_model_rlm)) %>% 
+  mutate(model = map(data, segment_model)) %>% 
   
   mutate(tidy = map(model, broom::tidy), 
          glance = map(model, broom::glance), 
          
          # let's specifically extract r squared: 
-         rsq = glance %>% map_dbl("r.squared"),  
+         rsq = glance %>% map_dbl("r.squared"))
          # map( ) can be used to extract all objects with a certain name, here "r.squared"
          
          # same results for rlm: 
-         tidy_rlm = map(model_rlm, broom::tidy), 
-         glance_rlm = map(model_rlm, broom::glance), 
+         # tidy_rlm = map(model_rlm, broom::tidy), 
+         # glance_rlm = map(model_rlm, broom::glance), 
          
          # get AIC specifically: 
-         aic = glance_rlm %>% map_dbl("AIC"))
+         # aic = glance_rlm %>% map_dbl("AIC"))
 
 # view: 
 df12.3_models %>% 
-  unnest(tidy_rlm) %>% 
+  unnest(tidy) %>% 
   datatable(extensions = 'Buttons',
             options = list(dom = 'Bfrtip', 
                            buttons = c('excel', "csv"))) %>% 
@@ -883,25 +882,15 @@ df12.5_add_projections <-
   df12.4_add_pop %>% 
   mutate(ed_visits_projected_lm = map2(model,
                                        pop_projection,
-                                       lm_predict), 
-         
-         ed_visits_projected_rlm = map2(model_rlm,
-                                        pop_projection,
-                                        lm_predict)) %>% 
-  unnest(ed_visits_projected_lm, 
-         ed_visits_projected_rlm) %>% 
+                                       lm_predict)) %>% 
+  unnest(ed_visits_projected_lm) %>% 
   select(age_group_pop, 
          ctas, 
-         fit:upr, 
-         fit1:upr1) %>% 
+         fit:upr) %>% 
   rename(fit_lm = fit, 
          lwr_lm = lwr, 
-         upr_lm = upr, 
-         
-         fit_rlm = fit1, 
-         lwr_rlm = lwr1, 
-         upr_rlm = upr1) %>% 
-  mutate(year = rep(2019:2040, times = 17))
+         upr_lm = upr) %>% 
+  mutate(year = rep(2017:2040, times = 17))
 
 
 # join historical and projected data: 
