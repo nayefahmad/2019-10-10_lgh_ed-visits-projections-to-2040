@@ -53,11 +53,11 @@ knitr::opts_chunk$set(warning=FALSE, message=FALSE)
 #' # ED visits data 
 #+ data 
 # 1) ED visits data : ----------------
-site <- "LGH"
+site_param <- "LGH"
 
 df1.ed_visits_annual <- 
   vw_eddata %>% 
-  filter(facility_short_name == site) %>% 
+  filter(facility_short_name == site_param) %>% 
   select(start_date_id, 
          last_triage_acuity_desc, 
          age_at_start_date, 
@@ -130,7 +130,7 @@ df1.ed_visits_annual %>%
   geom_point() + 
   geom_smooth(se = FALSE) + 
   labs(title = sprintf("%s Annual ED Visits by Calendar Year", 
-                       site)) + 
+                       site_param)) + 
   theme_light() +
   theme(panel.grid.minor = element_line(colour = "grey95"), 
         panel.grid.major = element_line(colour = "grey95"))
@@ -147,7 +147,7 @@ df1.ed_visits_annual %>%
   geom_line() + 
   geom_point() + 
   labs(title = sprintf("%s Annual ED Visits by Calendar Year", 
-                       site)) +  
+                       site_param)) +  
   theme_light() +
   theme(panel.grid.minor = element_line(colour = "grey95"), 
         panel.grid.major = element_line(colour = "grey95"))
@@ -327,7 +327,7 @@ df4.ed_and_pop_data %>%
   geom_boxplot() + 
   facet_wrap(~ctas) + 
   labs(title = sprintf("%s ED visits in 2018, by age group", 
-                       site), 
+                       site_param), 
        subtitle = "todo: \"5-9\" age group is in the wrong place") + 
   theme_light() +
   theme(panel.grid.minor = element_line(colour = "grey95"), 
@@ -400,7 +400,7 @@ df5.nested <-
   mutate(ed_vs_pop = pmap(list(df = data, 
                                subset1 = age_group_pop, 
                                subset2 = ctas, 
-                               site = site), 
+                               site = site_param), 
                           plot_trend2))
 # df5.nested
 # df5.nested$ed_vs_pop[64]
@@ -738,7 +738,7 @@ df11.pivoted <-
   mutate(plot_projection = pmap(list(df = data, 
                                      subset1 = age_group_pop, 
                                      subset2 = ctas, 
-                                     site = site), 
+                                     site = site_param), 
                                plot_ed_projection))
   
 #' There are too many graphs to show here. See *`r here::here("results", "dst")`*
@@ -1009,7 +1009,7 @@ df11.pivoted <-
   mutate(plot_projection = pmap(list(df = data, 
                                      subset1 = age_group_pop, 
                                      subset2 = ctas, 
-                                     site = "RHS"), 
+                                     site = site_param), 
                                 plot_ed_projection))
 
 #' There are too many graphs to show here. See *`r here::here("results", "dst")`*
@@ -1084,7 +1084,7 @@ df13.3_summary_historical_by_year %>%
 # write_csv(df10.historical_and_projection,
 #           here::here("results",
 #                      "dst",
-#                      "2019-09-24_rhs_ed-visits-projections-by-age-and-ctas.csv"))
+#                      "2019-10-12_lgh_ed-visits-projections-by-age-and-ctas.csv"))
 
 
 #' ## Checks
@@ -1099,7 +1099,7 @@ df13.3_summary_historical_by_year %>%
 
 df14.1.actuals <- 
   vw_eddata %>% 
-  filter(facility_short_name == site, 
+  filter(facility_short_name == site_param, 
          start_date_id >= "20170101", 
          start_date_id <= "20181231") %>% 
   select(start_date_id,

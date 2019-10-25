@@ -10,7 +10,7 @@
 plot_ed_projection <- function(df, 
                         subset1 = NULL, 
                         subset2 = NULL, 
-                        site = "RHS"){
+                        site){
   # arguments: 
   # > df: df with cols: year, metric, value. Metric has 3 levels: ed_visits, fit_lm, and upr_lm 
   # > subset1: optional, used to specify which subset of population we're 
